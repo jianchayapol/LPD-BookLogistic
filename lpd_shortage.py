@@ -10,160 +10,185 @@ Original file is located at
 from os import read
 import csv
 import matplotlib.pyplot as plt
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ================= Global Variables ====================
 
-delivery_data = dict() # { Order : [deliveryId 1,2,...] }
-books_deliver = dict() # { deliveryId : [BookId 1,2,...]}
-book_details = dict() # { BookId : productName }
-delivery_date = dict() # { deliveryId : CreatedDate }
-time_diff_from_prev = dict() # { deliveryId : time }
+delivery_data = dict()      # { Order : [deliveryId 1,2,...] }
+books_deliver = dict()      # { deliveryId : [BookId 1,2,...] }
+book_details = dict()      # { BookId : productName }
+delivery_date = dict()      # { deliveryId : CreatedDate }
+time_diff_from_prev = dict()   # { deliveryId : time }
 
-DeliverySizeFreq = [['#books','Freq']]
-OrderDeliveryDetails = [['Order ID','Transportation Round(s)','DeliveryID','#Books','Books (SKU)','Books Detail','DateCreated','Time diff from Prev.Round','Time diff from 1st Round']]
+delivery_size_freq = [['#books', 'Frequency']]
+order_delivery_details = [['Order ID', 'Transportation Round(s)', 'Delivery ID', '#Books', 'Books (SKU)', 'Books Detail', 'Date Created', 'Time diff from Prev. Round', 'Time diff from 1st Round']]
 
 # ==================== Functions ========================
 
-def readData(filename):
-  f = open(filename+".csv", "r", encoding="utf-8")
-  lines = f.readlines()
-  checker = ''
-  for line in lines[1:]:
-    data_input = line.strip().split(',')
-    try:
-      deliveryId = data_input[0]
-      orderId = (data_input[1]).split('-')[0]
-      date = data_input[2]
-      transportation_type = data_input[9]
-      bookId = data_input[11]
-      product_name = data_input[12]
-      quantity = int(data_input[13])
+def read_data(filename):
+    """
+    Reads data from a CSV file and populates the global variables.
+    Args:
+        filename (str): The name of the CSV file to read.
+    """
+    with open(filename + ".csv", "r", encoding="utf-8") as file:
+        lines = file.readlines()
+        checker = ''
+        for line in lines[1:]:
+            data_input = line.strip().split(',')
+            try:
+                delivery_id = data_input[0]
+                order_id = (data_input[1]).split('-')[0]
+                date = data_input[2]
+                transportation_type = data_input[9]
+                book_id = data_input[11]
+                product_name = data_input[12]
+                quantity = int(data_input[13])
 
-      # ======== Delivery - Created Date ===========
-      if not delivery_date.get(deliveryId):
-        delivery_date[deliveryId] = date
+                # ======== Delivery - Created Date ===========
+                if not delivery_date.get(delivery_id):
+                    delivery_date[delivery_id] = date
 
-      # ======== Books Delivery Details ===========
-      if(books_deliver.get(deliveryId)):
-        for i in range(int(quantity)):
-          books_deliver[deliveryId].append(bookId)
-      else:
-        books_deliver[deliveryId] = [bookId]*int(quantity)
+                # ======== Books Delivery Details ===========
+                if delivery_id in books_deliver:
+                    for _ in range(quantity):
+                        books_deliver[delivery_id].append(book_id)
+                else:
+                    books_deliver[delivery_id] = [book_id] * quantity
 
-      # ======== Book SKU Details ===========
-      if not book_details.get(bookId):
-        book_details[bookId] = product_name
+                # ======== Book SKU Details ===========
+                if not book_details.get(book_id):
+                    book_details[book_id] = product_name
 
-      if(checker == orderId): continue
+                if checker == order_id:
+                    continue
 
-      # ======== Orders Details ===========
-      if(delivery_data.get(orderId)):
-        delivery_data[orderId].append(deliveryId)
-      else:
-        delivery_data[orderId] = [deliveryId]
-      checker = orderId
-    except:
-      print('Found:',data_input)
-
-
-def writeCSV(file_path,data):
-  # Open the file in write mode and specify newline='' to handle line endings correctly
-  with open(file_path, 'w', newline='') as file:
-    writer = csv.writer(file)
-    # Write the data to the CSV file
-    writer.writerows(data)
-  print(f"CSV file '{file_path}' created successfully.")
+                # ======== Orders Details ===========
+                if order_id in delivery_data:
+                    delivery_data[order_id].append(delivery_id)
+                else:
+                    delivery_data[order_id] = [delivery_id]
+                checker = order_id
+            except:
+                print('Found:', data_input)
 
 
-def get_time_diff(string1,string2):
-  # Convert strings to datetime objects
-  datetime1 = datetime.strptime(string1, "%Y-%m-%d %H:%M:%S")
-  datetime2 = datetime.strptime(string2, "%Y-%m-%d %H:%M:%S")
-  # Calculate the time difference
-  time_difference = datetime1 - datetime2
-  return time_difference
+def write_csv(file_path, data):
+    """
+    Writes the data to a CSV file.
+    Args:
+        file_path (str): The path of the CSV file to write.
+        data (list): The data to write to the CSV file.
+    """
+    with open(file_path, 'w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerows(data)
+    print(f"CSV file '{file_path}' created successfully.")
+
+
+def get_time_diff(string1, string2):
+    """
+    Calculates the time difference between two given datetime strings.
+    Args:
+        string1 (str): The first datetime string.
+        string2 (str): The second datetime string.
+    Returns:
+        timedelta: The time difference between the two datetime values.
+    """
+    datetime1 = datetime.strptime(string1, "%Y-%m-%d %H:%M:%S")
+    datetime2 = datetime.strptime(string2, "%Y-%m-%d %H:%M:%S")
+    time_difference = datetime1 - datetime2
+    return time_difference
 
 # =========================== * main function * =================================
 
 def main():
-  # readData('22060')
-  #'2201','2202','2203'
-  dataset = ['2203','2204','2205','2206','2207','2208','2209','2210','2211','2212']
-  for e in dataset:
-    readData(e+'-Cleaned')
-  # print(delivery_data)
+    """
+    The main function that processes the delivery data and generates statistics and visualizations.
+    """
+    dataset = ['2203', '2204', '2205', '2206', '2207', '2208', '2209', '2210', '2211', '2212']
+    for entry in dataset:
+        read_data(entry + '-Cleaned')
 
-  print(delivery_date)
+    print(delivery_date)
 
-  n = 0
-  for order_id, list_id in delivery_data.items(): # {orderID: [DO1,DO2,DO3,...]}
-    delivery_ids = sorted(list_id)
-    timediff_prev = 0
-    timediff_first = 0
-    delivery_round = len(delivery_ids)
-    sku_ids,sku_names = '',''
+    n = 0
+    short_time_diff = dict()
+    for i in range(7):
+        short_time_diff[i + 1] = 0
 
-    OrderDeliveryDetails.append([order_id,delivery_round,str(delivery_ids)])
+    for order_id, delivery_ids in delivery_data.items():
+        delivery_ids = sorted(delivery_ids)
+        time_diff_prev = 0
+        time_diff_first = 0
+        delivery_round = len(delivery_ids)
+        sku_ids, sku_names = '', ''
 
-    id = delivery_ids[0]
-    time_first = delivery_date[id]  #string
-    time_diff_from_prev[id] = 0
-    sku_ids = '\n'.join(books_deliver[id])
-    for book in books_deliver[id]:
-      sku_names += (book_details[book]+'\n')
+        order_delivery_details.append([order_id, delivery_round, str(delivery_ids)])
 
-    OrderDeliveryDetails.append(['','',id,len(books_deliver[id]),sku_ids,sku_names,delivery_date[id],timediff_prev,timediff_first])
+        id = delivery_ids[0]
+        time_first = delivery_date[id]
+        time_diff_from_prev[id] = 0
+        sku_ids = '\n'.join(books_deliver[id])
+        for book in books_deliver[id]:
+            sku_names += (book_details[book] + '\n')
 
-    for i in range(1,len(delivery_ids)):
-      id = delivery_ids[i]
-      id_prev = delivery_ids[i-1]
-      sku_ids,sku_names = '',''
-      sku_ids = '\n'.join(books_deliver[id])
-      for book in books_deliver[id]:
-        sku_names += (book_details[book]+'\n')
-      timediff_prev = get_time_diff(delivery_date[id],delivery_date[id_prev])
-      timediff_first = get_time_diff(delivery_date[id],time_first)
-      time_diff_from_prev[id] = get_time_diff(delivery_date[id],delivery_date[id_prev])
-      OrderDeliveryDetails.append(['','',id,len(books_deliver[id]),sku_ids,sku_names,delivery_date[id],timediff_prev,timediff_first])
+        order_delivery_details.append(['', '', id, len(books_deliver[id]), sku_ids, sku_names, delivery_date[id], time_diff_prev, time_diff_first])
 
-    # if(len(delivery_ids)>=10):
-      # print('orderID: ',order_id,'  ',delivery_ids)
-    n+=len(delivery_ids)
-  print("-----------------------")
-  print('Average Transportation Round is ',n/len(delivery_data),' round/order')
-  print("-----------------------")
-  count = dict()
-  n = 0
-  for k,v in books_deliver.items(): # { deliveryId : [BookId 1,2,...]}
-    # print('deliveryID: ',k,' Total Books:',len(v), ' -> ',v)
-    if(count.get(len(v))):
-      count[len(v)]+=1
-    else:
-      count[len(v)] = 1
-    n+=len(v)
-    # if(len(v)>30): print("BIG ORDER (>30 items) delivery .. deliveryID :", k)
-  print("-----------------------")
-  print('average delivery size = ',n/len(books_deliver),' books.')
-  sorted_count = sorted(count.items(), key=lambda x:x[0])
-  x = []
-  y = []
-  for a,b in sorted_count:
-    print('#books:',a,'freq=',b)
-    x.append(a)
-    y.append(b)
-    DeliverySizeFreq.append([a,b])
+        for i in range(1, len(delivery_ids)):
+            id = delivery_ids[i]
+            id_prev = delivery_ids[i - 1]
+            sku_ids, sku_names = '', ''
+            sku_ids = '\n'.join(books_deliver[id])
+            for book in books_deliver[id]:
+                sku_names += (book_details[book] + '\n')
+            time_diff_prev = get_time_diff(delivery_date[id], delivery_date[id_prev])
+            time_diff_first = get_time_diff(delivery_date[id], time_first)
+            time_diff_from_prev[id] = time_diff_prev
+            for i in range(7):
+                if time_diff_prev < timedelta(days=(i + 1)):
+                    short_time_diff[i + 1] += 1
 
-  DeliverySizeFreq.append(['sum',sum([int(e[1]) for e in DeliverySizeFreq[1:]])])
+            order_delivery_details.append(['', '', id, len(books_deliver[id]), sku_ids, sku_names, delivery_date[id], time_diff_prev, time_diff_first])
 
-  plt.bar(x, y)
-  plt.xlabel('#Books')
-  plt.ylabel('Freq.')
-  plt.title('Delivery Size')
-  plt.show()
+        n += len(delivery_ids)
 
-  writeCSV('DeliverySizeFreq.csv',DeliverySizeFreq)
-  writeCSV('OrderDeliveryDetails.csv',OrderDeliveryDetails)
+    print("-----------------------")
+    print('Average Transportation Round is', n / len(delivery_data), 'rounds/order')
+    print("-----------------------")
+    print("Delivery with Short Time Difference Between Previous Orders:")
+    for days, frequency in short_time_diff.items():
+        print(f">>> Less than {days} day(s) - Frequency = {frequency} round(s)")
+
+    count = dict()
+    n = 0
+    for delivery_id, books in books_deliver.items():
+        if len(books) in count:
+            count[len(books)] += 1
+        else:
+            count[len(books)] = 1
+        n += len(books)
+
+    print("-----------------------")
+    print('Average delivery size =', n / len(books_deliver), 'books.')
+    sorted_count = sorted(count.items(), key=lambda x: x[0])
+    x = []
+    y = []
+    for num_books, freq in sorted_count:
+        print('#books:', num_books, 'freq =', freq)
+        x.append(num_books)
+        y.append(freq)
+
+    delivery_size_freq.append(['sum', sum([int(entry[1]) for entry in delivery_size_freq[1:]])])
+
+    plt.bar(x, y)
+    plt.xlabel('#Books')
+    plt.ylabel('Frequency')
+    plt.title('Delivery Size')
+    plt.show()
+
+    write_csv('DeliverySizeFreq.csv', delivery_size_freq)
+    write_csv('OrderDeliveryDetails.csv', order_delivery_details)
 
 main()
 
